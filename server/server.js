@@ -2,6 +2,7 @@ require('dotenv').config()
 const express = require('express');
 const mongoose = require('mongoose');
 const sessions = require('client-sessions');
+const bcrypt = require('bcrypt');
 const app = express()
 const PORT = process.env.PORT || 3030
 const User = require('./models/userSchema');
@@ -20,7 +21,10 @@ app.use(sessions({
 app.use(express.json())
 
 app.post('/signup', async (req, res)=> {
-    console.log(req.body)
+
+    const hashedPassword = bcrypt.hashSync(req.body.password, 10)
+    console.log(hashedPassword)
+    req.body.password = hashedPassword
     const user = new User({
         firstName: req.body.firstName,
         lastName: req.body.lastName,
@@ -45,9 +49,12 @@ app.post('/signup', async (req, res)=> {
 
 app.get('/users', async(req, res)=> {
     User.findOne({email: req.body.email}, (err, user)=> {
-        if(err) res.status(400).json({'error': 'failed to fetch user'})
-        else {
+        if(!user || !bcrypt.compareSync(req.body.password, user.password)) {
+            res.status(401).json({"error": err})
+        }
+        else {    
             req.session.userId = user._id
+            console.log(req.session)
             res.status(200).json(user)
         }
     })
